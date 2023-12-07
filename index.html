@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stopwatch</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+        }
+
+        #stopwatch {
+            font-size: 2em;
+            margin: 20px;
+        }
+
+        #controls {
+            margin: 20px;
+        }
+
+        #lapTimes {
+            margin: 20px;
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .lapColumn {
+            flex: 1;
+            text-align: left;
+            padding: 0 10px;
+        }
+
+        #exportBtn {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="stopwatch">00:00:00</div>
+    <div id="controls">
+        <button onclick="startStop()">Start/Stop</button>
+        <button onclick="reset()">Reset</button>
+        <button onclick="lap()">Lap</button>
+    </div>
+    <div id="lapTimes" class="lapColumn">
+        <div class="lapColumn" id="lapTimesList"></div>
+        <div class="lapColumn" id="lapDifferences"></div>
+        <div class="lapColumn" id="realTimeList"></div>
+        <div class="lapColumn" id="realTimeDifferences"></div>
+    </div>
+    <button id="exportBtn" onclick="exportToExcel()">Export as Excel</button>
+
+    <script>
+        let isRunning = false;
+        let lapCounter = 1;
+        let totalMilliseconds = 0;
+        let lapTimes = [];
+
+        function startStop() {
+            if (isRunning) {
+                isRunning = false;
+                clearInterval(interval);
+            } else {
+                isRunning = true;
+                interval = setInterval(updateStopwatch, 10);
+            }
+        }
+
+        function reset() {
+            isRunning = false;
+            clearInterval(interval);
+            totalMilliseconds = 0;
+            lapCounter = 1;
+            lapTimes = [];
+            updateStopwatch();
+            updateLapTimes();
+        }
+
+        function lap() {
+            lapTimes.push({
+                lapTime: totalMilliseconds,
+                realTime: new Date()
+            });
+            updateLapTimes();
+            lapCounter++;
+        }
+
+        function updateStopwatch() {
+            let hours = Math.floor(totalMilliseconds / 3600000);
+            let minutes = Math.floor((totalMilliseconds % 3600000) / 60000);
+            let seconds = Math.floor((totalMilliseconds % 60000) / 1000);
+            let milliseconds = Math.floor((totalMilliseconds % 1000) / 10);
+
+            document.getElementById("stopwatch").innerText = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(2, '0')}`;
+
+            totalMilliseconds += 10;
+        }
+
+        function updateLapTimes() {
+            let lapTimesList = document.getElementById("lapTimesList");
+            let lapDifferences = document.getElementById("lapDifferences");
+            let realTimeList = document.getElementById("realTimeList");
+            let realTimeDifferences = document.getElementById("realTimeDifferences");
+
+            lapTimesList.innerHTML = "";
+            lapDifferences.innerHTML = "";
+            realTimeList.innerHTML = "";
+            realTimeDifferences.innerHTML = "";
+
+            for (let i = 0; i < lapTimes.length; i++) {
+                let lapHours = Math.floor(lapTimes[i].lapTime / 3600000);
+                let lapMinutes = Math.floor((lapTimes[i].lapTime % 3600000) / 60000);
+                let lapSeconds = Math.floor((lapTimes[i].lapTime % 60000) / 1000);
+                let lapMilliseconds = Math.floor((lapTimes[i].lapTime % 1000) / 10);
+
+                let lapTimeDisplay = `${String(lapHours).padStart(2, '0')}:${String(lapMinutes).padStart(2, '0')}:${String(lapSeconds).padStart(2, '0')}.${String(lapMilliseconds).padStart(2, '0')}`;
+
+                let lapDifference = i > 0 ? lapTimes[i].lapTime - lapTimes[i - 1].lapTime : 0;
+                let differenceHours = Math.floor(lapDifference / 3600000);
+                let differenceMinutes = Math.floor((lapDifference % 3600000) / 60000);
+                let differenceSeconds = Math.floor((lapDifference % 60000) / 1000);
+                let differenceMilliseconds = Math.floor((lapDifference % 1000) / 10);
+
+                let lapDifferenceDisplay = `+${String(differenceHours).padStart(2, '0')}:${String(differenceMinutes).padStart(2, '0')}:${String(differenceSeconds).padStart(2, '0')}.${String(differenceMilliseconds).padStart(2, '0')}`;
+
+                let lapItem = document.createElement("div");
+                lapItem.textContent = `Lap ${i + 1}: ${lapTimeDisplay}`;
+                lapTimesList.appendChild(lapItem);
+
+                let differenceItem = document.createElement("div");
+                differenceItem.textContent = lapDifferenceDisplay;
+                lapDifferences.appendChild(differenceItem);
+
+                // Real Time
+                let realTime = lapTimes[i].realTime;
+                let realTimeHours = realTime.getHours();
+                let realTimeMinutes = realTime.getMinutes();
+                let realTimeSeconds = realTime.getSeconds();
+                let realTimeMilliseconds = realTime.getMilliseconds();
+
+                let realTimeDisplay = `${String(realTimeHours).padStart(2, '0')}:${String(realTimeMinutes).padStart(2, '0')}:${String(realTimeSeconds).padStart(2, '0')}.${String(realTimeMilliseconds).padStart(2, '0')}`;
+
+                let realTimeItem = document.createElement("div");
+                realTimeItem.textContent = `Real Time ${i + 1}: ${realTimeDisplay} - ${realTime.toLocaleDateString()}`;
+                realTimeList.appendChild(realTimeItem);
+
+                // Real Time Difference
+                let realTimeDifference = i > 0 ? realTime - lapTimes[i - 1].realTime : 0;
+                let realTimeDifferenceHours = Math.floor(realTimeDifference / 3600000);
+                let realTimeDifferenceMinutes = Math.floor((realTimeDifference % 3600000) / 60000);
+
+                let realTimeDifferenceDisplay = `+${String(realTimeDifferenceHours).padStart(2, '0')}:${String(realTimeDifferenceMinutes).padStart(2, '0')}`;
+
+                let realTimeDifferenceItem = document.createElement("div");
+                realTimeDifferenceItem.textContent = `Real Time Diff ${i + 1}: ${realTimeDifferenceDisplay}`;
+                realTimeDifferences.appendChild(realTimeDifferenceItem);
+            }
+        }
+
+        function exportToExcel() {
+            const lapData = lapTimes.map((lap, index) => ({
+                Lap: index + 1,
+                LapTime: formatTime(lap.lapTime),
+                LapDifference: index > 0 ? formatTime(lap.lapTime - lapTimes[index - 1].lapTime) : '',
+                RealTime: lap.realTime.toLocaleString(),
+                RealTimeDifference: index > 0 ? formatRealTimeDifference(lap.realTime - lapTimes[index - 1].realTime) : '',
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(lapData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Lap Data');
+            XLSX.writeFile(wb, 'lap_data.xlsx');
+        }
+
+        function formatTime(milliseconds) {
+            let hours = Math.floor(milliseconds / 3600000);
+            let minutes = Math.floor((milliseconds % 3600000) / 60000);
+            let seconds = Math.floor((milliseconds % 60000) / 1000);
+            let millisecondsPart = Math.floor((milliseconds % 1000) / 10);
+
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(millisecondsPart).padStart(2, '0')}`;
+        }
+
+        function formatRealTimeDifference(milliseconds) {
+            let hours = Math.floor(milliseconds / 3600000);
+            let minutes = Math.floor((milliseconds % 3600000) / 60000);
+
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        }
+
+        let interval;
+    </script>
+</body>
+</html>
